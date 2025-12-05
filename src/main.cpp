@@ -21,6 +21,7 @@ motor motor3 = motor(PORT4, ratio18_1, false);
 motor motor4 = motor(PORT5, ratio18_1, false);
 motor motor5 = motor(PORT6, ratio18_1, false);
 motor motor6 = motor(PORT7, ratio18_1, false);
+motor intake = motor(PORT8, ratio18_1, false);
 
 /*
 
@@ -281,7 +282,7 @@ void usercontrol(void)
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("== JOYSTICK VALUES ==");
     Brain.Screen.setCursor(2, 30);
-    Brain.Screen.print("MOTOR COMMANDS");
+    Brain.Screen.print("MOTOR DIAGNOSTICS");
 
     // Draw graphical bars for each axis
     // Y position for each bar (spacing them out)
@@ -292,17 +293,21 @@ void usercontrol(void)
 
     // Motor commands display (right side)
     Brain.Screen.setCursor(5, 30);
-    Brain.Screen.print("M1: %3d  ", motor1.velocity(percent));
+    Brain.Screen.print("M1: %f  ", motor1.velocity(percent));
     Brain.Screen.setCursor(6, 30);
-    Brain.Screen.print("M2: %3d  ", motor2.velocity(percent));
+    Brain.Screen.print("M2: %f  ", motor2.velocity(percent));
     Brain.Screen.setCursor(7, 30);
-    Brain.Screen.print("M3: %3d  ", motor3.velocity(percent));
+    Brain.Screen.print("M3: %f   ", motor3.velocity(percent));
     Brain.Screen.setCursor(8, 30);
-    Brain.Screen.print("M4: %3d  ", motor4.velocity(percent));
+    Brain.Screen.print("M4: %f  ", motor4.velocity(percent));
     Brain.Screen.setCursor(9, 30);
-    Brain.Screen.print("M5: %3d  ", motor5.velocity(percent));
+    Brain.Screen.print("M5: %f  ", motor5.velocity(percent));
     Brain.Screen.setCursor(10, 30);
-    Brain.Screen.print("M6: %3d  ", motor6.velocity(percent));
+    Brain.Screen.print("M6: %f  ", motor6.velocity(percent));
+
+    Brain.Screen.setCursor(11, 30);
+    Brain.Screen.print("Intake: %f  ", intake.velocity(percent));
+    intake.spin(forward, Controller.Axis3.position(), percent);
 
     wait(20, msec); // Sleep the task for a short amount of time to
                     // prevent wasted resources.
