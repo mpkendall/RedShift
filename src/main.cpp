@@ -15,19 +15,17 @@ using namespace vex;
 competition Competition;
 brain Brain;
 controller Controller = controller(controllerType::primary);
-motor motor1 = motor(PORT19, ratio18_1, false);
-motor motor2 = motor(PORT20, ratio18_1, false);
+motor motor1 = motor(PORT2, ratio18_1, false);
+motor motor2 = motor(PORT3, ratio18_1, false);
 motor motor3 = motor(PORT4, ratio18_1, false);
 motor motor4 = motor(PORT5, ratio18_1, false);
-motor motor5 = motor(PORT6, ratio18_1, false);
-motor motor6 = motor(PORT7, ratio18_1, false);
-motor intake = motor(PORT8, ratio18_1, false);
+motor intake = motor(PORT6, ratio18_1, false);
 
 /*
 
-* - motor 1    * - motor 4
-* - motor 2    * - motor 5
-* - motor 3    * - motor 6
+* drive train motor mapping:
+* - motor 1    * - motor 3
+* - motor 2    * - motor 4
 
 */
 
@@ -102,77 +100,66 @@ void setMotorDirection(motorDirection targetDirection, int speedPercent)
     motor2.spin(forward, speedPercent, percent);
     motor3.spin(forward, speedPercent, percent);
     motor4.spin(forward, speedPercent, percent);
-    motor5.spin(forward, speedPercent, percent);
-    motor6.spin(forward, speedPercent, percent);
     break;
   case motorDirection::backward:
     motor1.spin(reverse, speedPercent, percent);
     motor2.spin(reverse, speedPercent, percent);
     motor3.spin(reverse, speedPercent, percent);
     motor4.spin(reverse, speedPercent, percent);
-    motor5.spin(reverse, speedPercent, percent);
-    motor6.spin(reverse, speedPercent, percent);
     break;
   case motorDirection::leftSlow:
+    motor3.spin(forward, speedPercent, percent);
     motor4.spin(forward, speedPercent, percent);
-    motor5.spin(forward, speedPercent, percent);
-    motor6.spin(forward, speedPercent, percent);
+    motor1.stop();
+    motor2.stop();
     break;
   case motorDirection::rightSlow:
     motor1.spin(forward, speedPercent, percent);
     motor2.spin(forward, speedPercent, percent);
-    motor3.spin(forward, speedPercent, percent);
+    motor3.stop();
+    motor4.stop();
     break;
   case motorDirection::leftFast:
     motor1.spin(reverse, speedPercent, percent);
     motor2.spin(reverse, speedPercent, percent);
-    motor3.spin(reverse, speedPercent, percent);
+    motor3.spin(forward, speedPercent, percent);
     motor4.spin(forward, speedPercent, percent);
-    motor5.spin(forward, speedPercent, percent);
-    motor6.spin(forward, speedPercent, percent);
     break;
   case motorDirection::rightFast:
     motor1.spin(forward, speedPercent, percent);
     motor2.spin(forward, speedPercent, percent);
-    motor3.spin(forward, speedPercent, percent);
+    motor3.spin(reverse, speedPercent, percent);
     motor4.spin(reverse, speedPercent, percent);
-    motor5.spin(reverse, speedPercent, percent);
-    motor6.spin(reverse, speedPercent, percent);
     break;
   case motorDirection::stop:
     motor1.stop();
     motor2.stop();
     motor3.stop();
     motor4.stop();
-    motor5.stop();
-    motor6.stop();
     break;
   }
 }
 
 void updateMotorsFromJoystick(joystickValues values)
 {
-  // Extract joystick values
-  int verticalInput = values.axis2;   // Axis2: forward/backward
-  int horizontalInput = values.axis1; // Axis1: left/right turning
+  int verticalInput = values.axis2;
+  int horizontalInput = values.axis1;
   
-  // Apply deadzone to prevent drift (ignore small movements near center)
+  // deadzone
   const int DEADZONE = 5;
   if (abs(verticalInput) < DEADZONE)
     verticalInput = 0;
   if (abs(horizontalInput) < DEADZONE)
     horizontalInput = 0;
   
-  // If joysticks are at neutral, stop motors
   if (verticalInput == 0 && horizontalInput == 0)
   {
     setMotorDirection(motorDirection::stop, 0);
     return;
   }
   
-  // Tank drive control logic
-  // Left motors (1, 2, 3) and right motors (4, 5, 6)
-  // 4 quadrants correspond to each motor direction, using only left/rightFast, not slow
+  // tank drive logic
+  // left motors (1, 2) and right motors (3, 4)
   if (verticalInput > 0 && horizontalInput == 0)
   {
     // Moving forward
@@ -195,22 +182,22 @@ void updateMotorsFromJoystick(joystickValues values)
   }
   else if (verticalInput > 0 && horizontalInput > 0)
   {
-    // Forward + right turn (sharp right)
+    // Forward + right turn (slow right)
     setMotorDirection(motorDirection::rightSlow, verticalInput);
   }
   else if (verticalInput > 0 && horizontalInput < 0)
   {
-    // Forward + left turn (sharp left)
+    // Forward + left turn (slow left)
     setMotorDirection(motorDirection::leftSlow, verticalInput);
   }
   else if (verticalInput < 0 && horizontalInput > 0)
   {
-    // Backward + right turn (sharp right)
+    // Backward + right turn (slow right)
     setMotorDirection(motorDirection::rightSlow, abs(verticalInput));
   }
   else if (verticalInput < 0 && horizontalInput < 0)
   {
-    // Backward + left turn (sharp left)
+    // Backward + left turn (slow left)
     setMotorDirection(motorDirection::leftSlow, abs(verticalInput));
   }
 
@@ -300,12 +287,8 @@ void usercontrol(void)
     Brain.Screen.print("M3: %f   ", motor3.velocity(percent));
     Brain.Screen.setCursor(8, 30);
     Brain.Screen.print("M4: %f  ", motor4.velocity(percent));
-    Brain.Screen.setCursor(9, 30);
-    Brain.Screen.print("M5: %f  ", motor5.velocity(percent));
-    Brain.Screen.setCursor(10, 30);
-    Brain.Screen.print("M6: %f  ", motor6.velocity(percent));
 
-    Brain.Screen.setCursor(11, 30);
+    Brain.Screen.setCursor(9, 30);
     Brain.Screen.print("Intake: %f  ", intake.velocity(percent));
     intake.spin(forward, Controller.Axis3.position(), percent);
 
