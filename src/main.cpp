@@ -15,10 +15,11 @@ using namespace vex;
 competition Competition;
 brain Brain;
 controller Controller = controller(controllerType::primary);
-motor motor1 = motor(PORT2, ratio18_1, false);
-motor motor2 = motor(PORT3, ratio18_1, false);
-motor motor3 = motor(PORT4, ratio18_1, false);
-motor motor4 = motor(PORT5, ratio18_1, false);
+optical OpticalSensor = optical(PORT3);
+motor motor1 = motor(PORT20, ratio18_1, true);
+motor motor2 = motor(PORT10, ratio18_1, true);
+motor motor3 = motor(PORT11, ratio18_1, false);
+motor motor4 = motor(PORT1, ratio18_1, false);
 motor intake = motor(PORT6, ratio18_1, false);
 
 /*
@@ -142,7 +143,7 @@ void setMotorDirection(motorDirection targetDirection, int speedPercent)
 
 void updateMotorsFromJoystick(joystickValues values)
 {
-  int verticalInput = values.axis2;
+  int verticalInput = values.axis3;
   int horizontalInput = values.axis1;
   
   // deadzone
@@ -216,6 +217,7 @@ void updateMotorsFromJoystick(joystickValues values)
 void pre_auton(void)
 {
   setMotorDirection(motorDirection::stop, 0);
+  // take button input
 }
 
 /*---------------------------------------------------------------------------*/
@@ -265,6 +267,7 @@ void usercontrol(void)
 
     // Title
     Brain.Screen.setCursor(1, 1);
+  
     Brain.Screen.print("User Control");
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("== JOYSTICK VALUES ==");
