@@ -15,12 +15,16 @@ using namespace vex;
 competition Competition;
 brain Brain;
 controller Controller = controller(controllerType::primary);
-optical OpticalSensor = optical(PORT3);
-motor motor1 = motor(PORT20, ratio18_1, true);
+inertial InertialSensor = inertial(PORT8);
+motor motor1 = motor(PORT18, ratio18_1, true);
 motor motor2 = motor(PORT10, ratio18_1, true);
 motor motor3 = motor(PORT11, ratio18_1, false);
 motor motor4 = motor(PORT1, ratio18_1, false);
-motor intake = motor(PORT6, ratio18_1, false);
+motor intake = motor(PORT7, ratio18_1, false);
+motor arm1 = motor(PORT2, ratio36_1, false);
+motor arm2 = motor(PORT3, ratio36_1, true);
+
+int quadrant = 0; // Global variable for quadrant selection (0-3)
 
 /*
 
@@ -41,14 +45,32 @@ enum class motorDirection
   stop
 };
 
-struct joystickValues {
+struct joystickValues
+{
   int axis1;
   int axis2;
   int axis3;
   int axis4;
+  bool left1;
+  bool left2;
+  bool right1;
+  bool right2;
 };
 joystickValues currentJoystickValues;
 
+struct waypoint
+{
+  double x;
+  double y;
+  int heading;
+  int armHeight;
+};
+
+double clamp(double value, double minVal, double maxVal) {
+  if (value > maxVal) return maxVal;
+  if (value < minVal) return minVal;
+  return value;
+}
 
 
 void drawJoystickBar(int x, int y, int value, const char *label)
@@ -94,6 +116,7 @@ void drawJoystickBar(int x, int y, int value, const char *label)
 
 void setMotorDirection(motorDirection targetDirection, int speedPercent)
 {
+  vex::brakeType brakeBehavior = vex::brakeType::brake;
   switch (targetDirection)
   {
   case motorDirection::forward:
@@ -111,14 +134,14 @@ void setMotorDirection(motorDirection targetDirection, int speedPercent)
   case motorDirection::leftSlow:
     motor3.spin(forward, speedPercent, percent);
     motor4.spin(forward, speedPercent, percent);
-    motor1.stop();
-    motor2.stop();
+    motor1.stop(brakeBehavior);
+    motor2.stop(brakeBehavior);
     break;
   case motorDirection::rightSlow:
     motor1.spin(forward, speedPercent, percent);
     motor2.spin(forward, speedPercent, percent);
-    motor3.stop();
-    motor4.stop();
+    motor3.stop(brakeBehavior);
+    motor4.stop(brakeBehavior);
     break;
   case motorDirection::leftFast:
     motor1.spin(reverse, speedPercent, percent);
@@ -133,10 +156,10 @@ void setMotorDirection(motorDirection targetDirection, int speedPercent)
     motor4.spin(reverse, speedPercent, percent);
     break;
   case motorDirection::stop:
-    motor1.stop();
-    motor2.stop();
-    motor3.stop();
-    motor4.stop();
+    motor1.stop(brakeBehavior);
+    motor2.stop(brakeBehavior);
+    motor3.stop(brakeBehavior);
+    motor4.stop(brakeBehavior);
     break;
   }
 }
@@ -145,20 +168,20 @@ void updateMotorsFromJoystick(joystickValues values)
 {
   int verticalInput = values.axis3;
   int horizontalInput = values.axis1;
-  
+
   // deadzone
   const int DEADZONE = 5;
   if (abs(verticalInput) < DEADZONE)
     verticalInput = 0;
   if (abs(horizontalInput) < DEADZONE)
     horizontalInput = 0;
-  
+
   if (verticalInput == 0 && horizontalInput == 0)
   {
     setMotorDirection(motorDirection::stop, 0);
     return;
   }
-  
+
   // tank drive logic
   // left motors (1, 2) and right motors (3, 4)
   if (verticalInput > 0 && horizontalInput == 0)
@@ -201,7 +224,12 @@ void updateMotorsFromJoystick(joystickValues values)
     // Backward + left turn (slow left)
     setMotorDirection(motorDirection::leftSlow, abs(verticalInput));
   }
+}
 
+void driveToWaypoint(waypoint wp)
+{
+  double targetX = wp.x;
+  double targetY = wp.y;
 }
 
 /*---------------------------------------------------------------------------*/
@@ -217,7 +245,55 @@ void updateMotorsFromJoystick(joystickValues values)
 void pre_auton(void)
 {
   setMotorDirection(motorDirection::stop, 0);
-  // take button input
+  Brain.Screen.clearScreen();
+  Brain.Screen.setPenColor(color::white);
+  Brain.Screen.printAt(1, 20, "quadrant");
+
+  Brain.Screen.drawRectangle(130, 30, 100, 100, color::red);
+  Brain.Screen.printAt(175, 85, "1");
+
+  Brain.Screen.drawRectangle(250, 30, 100, 100, color::blue);
+  Brain.Screen.printAt(295, 85, "2");
+
+  Brain.Screen.drawRectangle(130, 140, 100, 100, color::green);
+  Brain.Screen.printAt(175, 195, "3");
+
+  Brain.Screen.drawRectangle(250, 140, 100, 100, color::yellow);
+  Brain.Screen.printAt(295, 195, "4");
+
+  bool selected = false;
+  while (!selected)
+  {
+    if (Brain.Screen.pressing())
+    {
+      int x = Brain.Screen.xPosition();
+      int y = Brain.Screen.yPosition();
+
+      if (x >= 130 && x <= 230 && y >= 30 && y <= 130)
+      {
+        quadrant = 0;
+        selected = true;
+      }
+      else if (x >= 250 && x <= 350 && y >= 30 && y <= 130)
+      {
+        quadrant = 1;
+        selected = true;
+      }
+      else if (x >= 130 && x <= 230 && y >= 140 && y <= 240)
+      {
+        quadrant = 2;
+        selected = true;
+      }
+      else if (x >= 250 && x <= 350 && y >= 140 && y <= 240)
+      {
+        quadrant = 3;
+        selected = true;
+      }
+    }
+    wait(20, msec);
+  }
+  Brain.Screen.setCursor(1, 1);
+  Brain.Screen.print("quadrant: %d", quadrant + 1);
 }
 
 /*---------------------------------------------------------------------------*/
@@ -238,6 +314,8 @@ void autonomous(void)
   Brain.Screen.clearScreen();
   Brain.Screen.setCursor(1, 1);
   Brain.Screen.print("Autonomous Mode");
+
+  
 }
 
 /*---------------------------------------------------------------------------*/
@@ -260,14 +338,89 @@ void usercontrol(void)
     currentJoystickValues.axis3 = Controller.Axis3.position();
     currentJoystickValues.axis4 = Controller.Axis4.position();
 
+    currentJoystickValues.left1 = Controller.ButtonL1.pressing();
+    currentJoystickValues.left2 = Controller.ButtonL2.pressing();
+    currentJoystickValues.right1 = Controller.ButtonR1.pressing();
+    currentJoystickValues.right2 = Controller.ButtonR2.pressing();
+
+    if (currentJoystickValues.left1)
+    {
+      intake.spin(forward, 100, percent);
+    }
+    else if (currentJoystickValues.left2)
+    {
+      intake.spin(reverse, 100, percent);
+    }
+    else
+    {
+      intake.stop();
+    }
+
+
+    static int armTargetIndex = 0;
+    static double armTargets[] = {-18.0, -277.0, -402.0, -500};
+    static bool autoArmActive = false;
+    static bool lastR1 = false;
+    static bool lastR2 = false;
+
+    if (Controller.ButtonUp.pressing())
+    {
+      autoArmActive = false;
+      arm1.spin(forward, 55, percent);
+      arm2.spin(forward, 55, percent);
+    }
+    else if (Controller.ButtonDown.pressing())
+    {
+      autoArmActive = false;
+      arm1.spin(reverse, 45, percent);
+      arm2.spin(reverse, 45, percent);
+    }
+    else if (!autoArmActive)
+    {
+      arm1.stop(hold);
+      arm2.stop(hold);
+    }
+
+    bool r1 = Controller.ButtonR1.pressing();
+    bool r2 = Controller.ButtonR2.pressing();
+
+    if (r1 && !lastR1)
+    {
+      if (armTargetIndex < 2) 
+      {
+        armTargetIndex++;
+        autoArmActive = true;
+      }
+    }
+    else if (r2 && !lastR2)
+    {
+      if (armTargetIndex > 0) 
+      {
+        armTargetIndex--;
+        autoArmActive = true;
+      }
+    }
+    lastR1 = r1;
+    lastR2 = r2;
+
+    if (autoArmActive)
+    {
+      double error = armTargets[armTargetIndex] - arm2.position(degrees);
+      double kp = 0.5;
+      double speed = error * kp;
+
+      arm1.spin(forward, speed, percent);
+      arm2.spin(forward, speed, percent);
+    }
+
     // Update motor commands based on joystick input
-    updateMotorsFromJoystick(currentJoystickValues);
+    //updateMotorsFromJoystick(currentJoystickValues);
 
     Brain.Screen.clearScreen();
 
     // Title
     Brain.Screen.setCursor(1, 1);
-  
+
     Brain.Screen.print("User Control");
     Brain.Screen.setCursor(2, 1);
     Brain.Screen.print("== JOYSTICK VALUES ==");
@@ -293,7 +446,6 @@ void usercontrol(void)
 
     Brain.Screen.setCursor(9, 30);
     Brain.Screen.print("Intake: %f  ", intake.velocity(percent));
-    intake.spin(forward, Controller.Axis3.position(), percent);
 
     wait(20, msec); // Sleep the task for a short amount of time to
                     // prevent wasted resources.
