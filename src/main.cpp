@@ -16,7 +16,7 @@ competition Competition;
 brain Brain;
 controller Controller = controller(controllerType::primary);
 inertial InertialSensor = inertial(PORT8);
-motor motor1 = motor(PORT18, ratio18_1, true);
+motor motor1 = motor(PORT20, ratio18_1, true);
 motor motor2 = motor(PORT10, ratio18_1, true);
 motor motor3 = motor(PORT11, ratio18_1, false);
 motor motor4 = motor(PORT1, ratio18_1, false);
@@ -315,7 +315,12 @@ void autonomous(void)
   Brain.Screen.setCursor(1, 1);
   Brain.Screen.print("Autonomous Mode");
 
-  
+  intake.spin(forward, 100, percent);
+  setMotorDirection(motorDirection::forward, 50);
+  wait(1, seconds);
+  setMotorDirection(motorDirection::stop, 0);
+  wait(5, seconds);
+  intake.stop();
 }
 
 /*---------------------------------------------------------------------------*/
@@ -356,65 +361,23 @@ void usercontrol(void)
       intake.stop();
     }
 
-
-    static int armTargetIndex = 0;
-    static double armTargets[] = {-18.0, -277.0, -402.0, -500};
-    static bool autoArmActive = false;
-    static bool lastR1 = false;
-    static bool lastR2 = false;
-
-    if (Controller.ButtonUp.pressing())
+    if (currentJoystickValues.right1)
     {
-      autoArmActive = false;
       arm1.spin(forward, 55, percent);
       arm2.spin(forward, 55, percent);
     }
-    else if (Controller.ButtonDown.pressing())
+    else if (currentJoystickValues.right2)
     {
-      autoArmActive = false;
-      arm1.spin(reverse, 45, percent);
-      arm2.spin(reverse, 45, percent);
+      arm1.spin(reverse, 40, percent);
+      arm2.spin(reverse, 40, percent);
     }
-    else if (!autoArmActive)
+    else
     {
       arm1.stop(hold);
       arm2.stop(hold);
     }
-
-    bool r1 = Controller.ButtonR1.pressing();
-    bool r2 = Controller.ButtonR2.pressing();
-
-    if (r1 && !lastR1)
-    {
-      if (armTargetIndex < 2) 
-      {
-        armTargetIndex++;
-        autoArmActive = true;
-      }
-    }
-    else if (r2 && !lastR2)
-    {
-      if (armTargetIndex > 0) 
-      {
-        armTargetIndex--;
-        autoArmActive = true;
-      }
-    }
-    lastR1 = r1;
-    lastR2 = r2;
-
-    if (autoArmActive)
-    {
-      double error = armTargets[armTargetIndex] - arm2.position(degrees);
-      double kp = 0.5;
-      double speed = error * kp;
-
-      arm1.spin(forward, speed, percent);
-      arm2.spin(forward, speed, percent);
-    }
-
     // Update motor commands based on joystick input
-    //updateMotorsFromJoystick(currentJoystickValues);
+    updateMotorsFromJoystick(currentJoystickValues);
 
     Brain.Screen.clearScreen();
 
