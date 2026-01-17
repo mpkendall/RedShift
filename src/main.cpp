@@ -361,19 +361,15 @@ void usercontrol(void)
       intake.stop();
     }
 
-    if (currentJoystickValues.right1)
+    if (currentJoystickValues.right1 && arm1.position(degrees) < 188)
     {
-      if(arm1.position(degrees) > -400) { 
         arm1.spin(forward, 55, percent);
         arm2.spin(forward, 55, percent);
-      }
     }
-    else if (currentJoystickValues.right2)
+    else if (currentJoystickValues.right2 && arm1.position(degrees) > 0)
     {
-      if(arm1.position(degrees) < 0) {
         arm1.spin(reverse, 40, percent);
         arm2.spin(reverse, 40, percent);
-      }              
     }
     else
     {
@@ -413,6 +409,8 @@ void usercontrol(void)
 
     Brain.Screen.setCursor(9, 30);
     Brain.Screen.print("Intake: %f  ", intake.velocity(percent));
+    Brain.Screen.setCursor(10, 30);
+    Brain.Screen.print("Arm: %f  ", arm1.position(degrees));
 
     wait(20, msec); // Sleep the task for a short amount of time to
                     // prevent wasted resources.
