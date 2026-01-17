@@ -363,13 +363,17 @@ void usercontrol(void)
 
     if (currentJoystickValues.right1)
     {
-      arm1.spin(forward, 55, percent);
-      arm2.spin(forward, 55, percent);
+      if(arm1.position(degrees) > -400) { 
+        arm1.spin(forward, 55, percent);
+        arm2.spin(forward, 55, percent);
+      }
     }
     else if (currentJoystickValues.right2)
     {
-      arm1.spin(reverse, 40, percent);
-      arm2.spin(reverse, 40, percent);
+      if(arm1.position(degrees) < 0) {
+        arm1.spin(reverse, 40, percent);
+        arm2.spin(reverse, 40, percent);
+      }              
     }
     else
     {
