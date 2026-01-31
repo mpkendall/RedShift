@@ -14,17 +14,17 @@ using namespace vex;
 // A global instance of competition
 competition Competition;
 brain Brain;
-controller Controller = controller(controllerType::primary);
-inertial InertialSensor = inertial(PORT8);
-motor motor1 = motor(PORT20, ratio18_1, true);
-motor motor2 = motor(PORT10, ratio18_1, true);
-motor motor3 = motor(PORT11, ratio18_1, false);
-motor motor4 = motor(PORT1, ratio18_1, false);
-motor intake = motor(PORT7, ratio18_1, false);
-motor arm1 = motor(PORT2, ratio36_1, false);
-motor arm2 = motor(PORT3, ratio36_1, true);
+controller Controller =   controller(controllerType::primary);
+motor motor1 =            motor(PORT20, ratio18_1, true);
+motor motor2 =            motor(PORT10, ratio18_1, true);
+motor motor3 =            motor(PORT11, ratio18_1, false);
+motor motor4 =            motor(PORT1, ratio18_1, false);
+motor intake_front =      motor(PORT6, ratio36_1, true);
+motor intake_middle =     motor(PORT3, ratio36_1, false);
+motor intake_back =       motor(PORT19, ratio36_1, false);
 
 int quadrant = 0; // Global variable for quadrant selection (0-3)
+
 
 /*
 
@@ -58,12 +58,15 @@ struct joystickValues
 };
 joystickValues currentJoystickValues;
 
-struct waypoint
+struct drivetrainPosition
 {
-  double x;
-  double y;
-  int heading;
-  int armHeight;
+  int m1D;
+  int m2D;
+  int m3D;
+  int m4D;
+  motorDirection intake1;
+  motorDirection intake2;
+  motorDirection intake3;
 };
 
 double clamp(double value, double minVal, double maxVal) {
@@ -226,12 +229,6 @@ void updateMotorsFromJoystick(joystickValues values)
   }
 }
 
-void driveToWaypoint(waypoint wp)
-{
-  double targetX = wp.x;
-  double targetY = wp.y;
-}
-
 /*---------------------------------------------------------------------------*/
 /*                          Pre-Autonomous Functions                         */
 /*                                                                           */
@@ -306,6 +303,49 @@ void pre_auton(void)
 /*  You must modify the code to add your own robot specific commands here.   */
 /*---------------------------------------------------------------------------*/
 
+void bringToDegrees(drivetrainPosition targetPosition)
+{
+  // Start all motors moving non-blocking
+
+
+  motor1.spinTo(targetPosition.m1D, degrees, 20, velocityUnits::pct, false);
+  motor2.spinTo(targetPosition.m2D, degrees, 20, velocityUnits::pct, false);
+  motor3.spinTo(targetPosition.m3D, degrees, 20, velocityUnits::pct, false);
+  motor4.spinTo(targetPosition.m4D, degrees, 20, velocityUnits::pct, false);
+  while (motor1.isSpinning() || motor2.isSpinning() || motor3.isSpinning() || motor4.isSpinning()) {
+    wait(20, msec);
+  }
+
+    if(targetPosition.intake1 == motorDirection::forward)
+    intake_front.spin(forward, 100, percent);
+  else if(targetPosition.intake1 == motorDirection::backward)
+    intake_front.spin(reverse, 100, percent);
+  else
+    intake_front.stop();
+
+  if(targetPosition.intake2 == motorDirection::forward)
+    intake_middle.spin(reverse, 100, percent);
+  else if(targetPosition.intake2 == motorDirection::backward)
+    intake_middle.spin(forward, 100, percent);
+  else
+    intake_middle.stop();
+
+  if(targetPosition.intake3 == motorDirection::forward)
+    intake_back.spin(forward, 100, percent);
+  else if(targetPosition.intake3 == motorDirection::backward)
+    intake_back.spin(reverse, 100, percent);
+  else
+    intake_back.stop();
+}
+
+drivetrainPosition points[] = {
+    {0, 0, 0, 0, motorDirection::forward, motorDirection::forward, motorDirection::stop},
+    {360, 360, 360, 360, motorDirection::forward, motorDirection::forward, motorDirection::stop},
+    {358, 359, 496, 496, motorDirection::stop, motorDirection::stop, motorDirection::stop},
+    {826, 826, 514, 518, motorDirection::stop, motorDirection::stop, motorDirection::stop},
+    {994, 992, 649, 648, motorDirection::backward, motorDirection::backward, motorDirection::backward},
+};
+
 void autonomous(void)
 {
   // ..........................................................................
@@ -315,12 +355,38 @@ void autonomous(void)
   Brain.Screen.setCursor(1, 1);
   Brain.Screen.print("Autonomous Mode");
 
-  intake.spin(forward, 100, percent);
-  setMotorDirection(motorDirection::forward, 50);
-  wait(1, seconds);
-  setMotorDirection(motorDirection::stop, 0);
-  wait(5, seconds);
-  intake.stop();
+  motor1.setPosition(0, degrees);
+  motor2.setPosition(0, degrees);
+  motor3.setPosition(0, degrees);
+  motor4.setPosition(0, degrees);
+
+  // Loop through points. Note: strictly less than (<) size, not <=
+  int numPoints = sizeof(points)/sizeof(points[0]);
+  for(int i = 0; i < numPoints; i++)
+  {
+    Brain.Screen.setCursor(2, 1);
+    Brain.Screen.print("Driving to Point %d", i);
+    bringToDegrees(points[i]);
+    wait(300, msec);
+  }
+  Brain.Screen.setCursor(3, 1);
+  Brain.Screen.print("Autonomous Complete");
+  motor1.stop(coast);
+  motor2.stop(coast);
+  motor3.stop(coast);
+  motor4.stop(coast);
+
+  while(true) {
+    Brain.Screen.setCursor(4, 1);
+    Brain.Screen.print("motor 1 pos: %f", motor1.position(degrees));
+    Brain.Screen.setCursor(5, 1);
+    Brain.Screen.print("motor 2 pos: %f", motor2.position(degrees));
+    Brain.Screen.setCursor(6, 1);
+    Brain.Screen.print("motor 3 pos: %f", motor3.position(degrees));
+    Brain.Screen.setCursor(7, 1);
+    Brain.Screen.print("motor 4 pos: %f", motor4.position(degrees));
+    wait(100, msec);
+  }
 }
 
 /*---------------------------------------------------------------------------*/
@@ -335,6 +401,10 @@ void autonomous(void)
 
 void usercontrol(void)
 {
+  motor1.setPosition(0, degrees);
+  motor2.setPosition(0, degrees);
+  motor3.setPosition(0, degrees);
+  motor4.setPosition(0, degrees);
   // User control code here, inside the loop
   while (1)
   {
@@ -350,31 +420,34 @@ void usercontrol(void)
 
     if (currentJoystickValues.left1)
     {
-      intake.spin(forward, 100, percent);
+      intake_front.spin(forward, 100, percent);
+      intake_middle.spin(reverse, 100, percent);
     }
     else if (currentJoystickValues.left2)
     {
-      intake.spin(reverse, 100, percent);
+      intake_front.spin(reverse, 50, percent);
+      intake_middle.spin(forward, 50, percent);
     }
     else
     {
-      intake.stop();
+      intake_front.stop();
+      intake_middle.stop();
     }
 
-    if (currentJoystickValues.right1 && arm1.position(degrees) < 188)
+    if (currentJoystickValues.right1)
     {
-        arm1.spin(forward, 55, percent);
-        arm2.spin(forward, 55, percent);
+      intake_middle.spin(forward, 100, percent);
+      intake_back.spin(forward, 100, percent);
     }
-    else if (currentJoystickValues.right2 && arm1.position(degrees) > 0)
+    else if (currentJoystickValues.right2)
     {
-        arm1.spin(reverse, 40, percent);
-        arm2.spin(reverse, 40, percent);
+      intake_middle.spin(reverse, 100, percent);
+      intake_back.spin(reverse, 100, percent);
     }
     else
     {
-      arm1.stop(hold);
-      arm2.stop(hold);
+      //intake_middle.stop();
+      intake_back.stop();
     }
     // Update motor commands based on joystick input
     updateMotorsFromJoystick(currentJoystickValues);
@@ -399,18 +472,16 @@ void usercontrol(void)
 
     // Motor commands display (right side)
     Brain.Screen.setCursor(5, 30);
-    Brain.Screen.print("M1: %f  ", motor1.velocity(percent));
+    Brain.Screen.print("M1: %f  ", motor1.position(degrees));
     Brain.Screen.setCursor(6, 30);
-    Brain.Screen.print("M2: %f  ", motor2.velocity(percent));
+    Brain.Screen.print("M2: %f  ", motor2.position(degrees));
     Brain.Screen.setCursor(7, 30);
-    Brain.Screen.print("M3: %f   ", motor3.velocity(percent));
+    Brain.Screen.print("M3: %f   ", motor3.position(degrees));
     Brain.Screen.setCursor(8, 30);
-    Brain.Screen.print("M4: %f  ", motor4.velocity(percent));
+    Brain.Screen.print("M4: %f  ", motor4.position(degrees));
 
     Brain.Screen.setCursor(9, 30);
-    Brain.Screen.print("Intake: %f  ", intake.velocity(percent));
-    Brain.Screen.setCursor(10, 30);
-    Brain.Screen.print("Arm: %f  ", arm1.position(degrees));
+    Brain.Screen.print("Intake: %f  ", intake_middle.velocity(percent));
 
     wait(20, msec); // Sleep the task for a short amount of time to
                     // prevent wasted resources.
